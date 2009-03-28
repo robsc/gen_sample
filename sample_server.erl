@@ -27,7 +27,7 @@
 init([]) -> init([100]);
 init([X]) when X > 0 -> 
   {A,B,C} = now(), random:seed(A, B, C),
-  Table = ets:new(table, [protected, ordered_set]),
+  Table = ets:new(table, [protected, set]),
   State = #sample{table = Table, seen = 0, total = X},
   {ok, State}.
 
