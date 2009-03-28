@@ -1,3 +1,19 @@
+%% A sampling gen server. 
+%% Author: Robert Schonberger. 
+%% 
+%% Sample Usage: 
+%% gen_server({local, sampler_20}, sample_server, [20], []).
+%% [ gen_server:cast(sampler_20, {add, X}) || X <- lists:seq(1, 1000)].
+%% Samples = gen_server:call(sampler_20, get_values).
+%% gen_server:call(sampler_20, stop).
+%% 
+%% Lots of TODOs, including:
+%%   - improving the argument system
+%%   - Including a multiple add convenience call
+%%   - Changing and controlling the randomness source.
+%%   - Eunit testing. 
+%%   - Weighted sampling.
+
 -module(sample_server).
 -behaviour(gen_server).
 -include_lib("sample_record.hrl").
