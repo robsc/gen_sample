@@ -26,9 +26,8 @@
 
 init([]) -> init([100]);
 init([X]) when X > 0 -> 
-  {A,B,C} = now(), random:seed(A, B, C),
   Table = ets:new(table, [protected, set]),
-  State = #sample{table = Table, seen = 0, total = X},
+  State = #sample{table = Table, seen = 0, total = X, seed = now()},
   {ok, State}.
 
 % Internal function to extract all the values from the table.
@@ -44,8 +43,8 @@ add_value(Value, State) when State#sample.seen < State#sample.total ->
   State#sample{seen = State#sample.seen + 1};
 
 add_value(Value, State) ->
-  NewState = State#sample{seen = State#sample.seen + 1},
-  Random = random:uniform(State#sample.seen + 1),
+  {Random, NewSeed} = random:uniform_s(State#sample.seen + 1, State#sample.seed),
+  NewState = State#sample{seen = State#sample.seen + 1, seed = NewSeed},
   if Random =< State#sample.total -> 
     NewVar = {Random, Value},
     ets:insert(State#sample.table, NewVar);
