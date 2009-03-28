@@ -1,5 +1,6 @@
 -module(sample_server).
 -behaviour(gen_server).
+-include_lib("sample_record.hrl").
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3, get_values/3]).
 
@@ -9,7 +10,7 @@ init([]) -> init([100]);
 init([X]) when X > 0 -> 
   {A,B,C} = now(), random:seed(A, B, C),
   Table = ets:new(table, [protected, ordered_set]),
-  State = {Table, 0, X},
+  State = #sample{table = Table, seen = 0, total = X},
   {ok, State}.
 
 % Internal function to extract all the values from the table.
@@ -19,29 +20,29 @@ get_values(Table, Num, Acc)  ->
   get_values(Table, Num - 1, [Value | Acc]).
 
 % internal synchronous function to add a single value.
-add_value(Value, {Table, Seen, Total}) when Seen < Total ->
-  InsertVal = {Seen + 1, Value},
-  ets:insert(Table, InsertVal),
-  NewState = {Table, Seen + 1, Total},
-  NewState;
+add_value(Value, State) when State#sample.seen < State#sample.total ->
+  InsertVal = {State#sample.seen + 1, Value},
+  ets:insert(State#sample.table, InsertVal),
+  State#sample{seen = State#sample.seen + 1};
 
-add_value(Value, {Table, Seen, Total}) ->
-  NewState = {Table, Seen + 1, Total},
-  Random = random:uniform(Seen + 1),
-  if Random =< Total -> 
+add_value(Value, State) ->
+  NewState = State#sample{seen = State#sample.seen + 1},
+  Random = random:uniform(State#sample.seen + 1),
+  if Random =< State#sample.total -> 
     NewVar = {Random, Value},
-    ets:insert(Table, NewVar);
-     true -> ok end,
+    ets:insert(State#sample.table, NewVar);
+    true -> ok end,
   NewState.
 
-handle_call(seen_count, _From, State = {_, Seen, _}) -> {reply, Seen, State};
-handle_call(get_table, _From, State = {Table, _, _}) -> {reply, Table, State};
-handle_call(get_values, _From, State = {Table, Seen, Total}) ->
-  if Seen < Total -> {reply, get_values(Table, Seen - 1, []), State};
-     true -> {reply, get_values(Table, Total, []), State} end;
-handle_call({add, Value}, _, State = {_, Seen, _}) -> NewState = add_value(Value, State), {reply, Seen + 1, NewState};
+handle_call(seen_count, _From, State) -> {reply, State#sample.seen, State};
+handle_call(get_table, _From, State) -> {reply, State#sample.table, State};
+handle_call(get_values, _From, State) -> 
+  if State#sample.seen < State#sample.total -> {reply, get_values(State#sample.table, State#sample.seen, []), State};
+     true -> {reply, get_values(State#sample.table, State#sample.total, []), State} end;
+handle_call({add, Value}, _, State) -> NewState = add_value(Value, State), {reply, State#sample.seen + 1, NewState};
 handle_call(stop, _From, State) -> {stop, stop, stop, State}.
-terminate(_, {Table, _, _}) -> ets:delete(Table).
+
+terminate(_, State) -> ets:delete(State#sample.table).
 
 handle_cast({add, Value}, State) -> {noreply, add_value(Value, State)}.
   
