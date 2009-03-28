@@ -34,7 +34,7 @@ add_value(Value, {Table, Seen, Total}) ->
      true -> ok end,
   NewState.
 
-handle_call(seen_count, _From, State = {Table, Seen, Total}) -> {reply, Seen, State};
+handle_call(seen_count, _From, State = {_, Seen, _}) -> {reply, Seen, State};
 handle_call(get_table, _From, State = {Table, _, _}) -> {reply, Table, State};
 handle_call(get_values, _From, State = {Table, Seen, Total}) ->
   if Seen < Total -> {reply, get_values(Table, Seen - 1, []), State};
@@ -45,6 +45,6 @@ terminate(_, {Table, _, _}) -> ets:delete(Table).
 
 handle_cast({add, Value}, State) -> {noreply, add_value(Value, State)}.
   
-handle_info(Info, State) -> {noreply, State}.
+handle_info(_Info,  State) -> {noreply, State}.
 
-code_change(_OldVsn, State, Extra) -> {ok, State}.
+code_change(_OldVsn, State, _Extra) -> {ok, State}.
