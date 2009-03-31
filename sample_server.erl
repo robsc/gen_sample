@@ -26,7 +26,7 @@
 % API
 sample(Process) -> gen_server:call(Process, get_values).
 
-add_sample(Process, Value) -> gen_server:cast(Process, {add_value, Value}).
+add_sample(Process, Value) -> gen_server:cast(Process, {add, Value}).
 
 % the record is: State, seen so far, total to sample.
 
