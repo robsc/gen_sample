@@ -21,12 +21,17 @@
 -include_lib("sample_record.hrl").
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
--export([sample/1, add_sample/2]).
+-export([sample/1, add_sample/2, sample_local/1]).
 
 % API
 sample(Process) -> gen_server:call(Process, get_values).
 
 add_sample(Process, Value) -> gen_server:cast(Process, {add, Value}).
+
+sample_local(Process) -> 
+  Table = gen_server:call(Process, get_table), 
+  ets:select(Table, [{{'$1','$2'},[],['$2']}]).
+
 
 % the record is: State, seen so far, total to sample.
 
