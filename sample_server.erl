@@ -10,7 +10,6 @@
 %% gen_server:call(sampler_20, stop).
 %% 
 %% Lots of TODOs, including:
-%%   - improving the argument system
 %%   - Including a multiple add convenience call
 %%   - Changing and controlling the randomness source.
 %%   - Eunit testing. 
@@ -21,17 +20,30 @@
 -include_lib("sample_record.hrl").
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
--export([sample/1, add_sample/2, sample_local/1]).
+-export([sample/1, add_sample/2, sample_local/1, create_sampler/1, create_linked_sampler/1, stop_sampler/1]).
 
 % API
+
 sample(Process) -> gen_server:call(Process, get_values).
 
-add_sample(Process, Value) -> gen_server:cast(Process, {add, Value}).
-
+% Only suitable from the same node.
 sample_local(Process) -> 
   Table = gen_server:call(Process, get_table), 
   ets:select(Table, [{{'$1','$2'},[],['$2']}]).
 
+% Add a sample to the process.
+add_sample(Process, Value) -> gen_server:cast(Process, {add, Value}).
+
+% create sampler.
+create_sampler(Samples) -> 
+  {ok, Pid} = gen_server:start(?MODULE, [Samples], []),
+  Pid.
+
+create_linked_sampler(Samples) ->
+  {ok, Pid} = gen_server:start_linked(?MODULE, [Samples], []),
+  Pid.
+
+stop_sampler(Pid) -> gen_server:call(Pid, stop).
 
 % the record is: State, seen so far, total to sample.
 
@@ -63,12 +75,21 @@ add_value(Value, State) ->
   NewState.
 
 handle_call(seen_count, _From, State) -> {reply, State#sample.seen, State};
+
 handle_call(get_table, _From, State) -> {reply, State#sample.table, State};
+
 handle_call(get_values, _From, State) -> 
-  if State#sample.seen < State#sample.total -> {reply, get_values(State#sample.table, State#sample.seen, []), State};
-     true -> {reply, get_values(State#sample.table, State#sample.total, []), State} end;
-handle_call({add, Value}, _, State) -> NewState = add_value(Value, State), {reply, State#sample.seen + 1, NewState};
-handle_call(stop, _From, State) -> {stop, stop, stop, State}.
+  if State#sample.seen < State#sample.total -> 
+       {reply, get_values(State#sample.table, State#sample.seen, []), State};
+     true -> 
+       {reply, get_values(State#sample.table, State#sample.total, []), State} 
+  end;
+
+handle_call({add, Value}, _, State) -> 
+  NewState = add_value(Value, State),
+  {reply, State#sample.seen + 1, NewState};
+
+handle_call(stop, _From, State) -> {stop, normal, ok, State}.
 
 terminate(_, State) -> ets:delete(State#sample.table).
 
